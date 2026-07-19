@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-: "${PUBLIC_IP:?PUBLIC_IP is required}"
+: "${MODE:=letsencrypt}"
+: "${PUBLIC_IP:=127.0.0.1}"
 : "${LETSENCRYPT_STAGING:=1}"
 : "${RENEW_INTERVAL_SECONDS:=21600}"
 : "${SERVER_NAME:=_}"
@@ -11,12 +12,16 @@ LIVE_CERT_DIR=/etc/nginx/certs/live
 LIVE_FULLCHAIN="$LIVE_CERT_DIR/fullchain.pem"
 LIVE_PRIVKEY="$LIVE_CERT_DIR/privkey.pem"
 
+if [ "$MODE" = "letsencrypt" ] && [ -z "${PUBLIC_IP:-}" ]; then
+  echo "PUBLIC_IP is required when MODE=letsencrypt" >&2
+  exit 1
+fi
+
 if [ "$LETSENCRYPT_STAGING" = "1" ]; then
   CERT_NAME="ip-$PUBLIC_IP-staging"
 else
   CERT_NAME="ip-$PUBLIC_IP-prod"
 fi
-
 LE_LIVE_DIR="/etc/letsencrypt/live/$CERT_NAME"
 
 mkdir -p "$WEBROOT" "$LIVE_CERT_DIR" /run/nginx
@@ -98,7 +103,11 @@ render_nginx_config
 nginx -g "daemon off;" &
 NGINX_PID=$!
 
-issue_or_reuse_cert
-renew_loop &
+if [ "$MODE" = "letsencrypt" ]; then
+  issue_or_reuse_cert
+  renew_loop &
+else
+  echo "Running with self-signed certificate only; Certbot is disabled"
+fi
 
 wait "$NGINX_PID"

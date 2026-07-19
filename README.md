@@ -10,28 +10,130 @@
 
 Let's Encrypt 已在 2026-01-15 宣布 IP 地址证书一般可用；Certbot 从 5.3 起支持 `--ip-address`，5.4 起支持 IP 地址证书的 `webroot` 模式。
 
-## 使用
+## 测试流程
+
+建议按下面顺序测试：
+
+1. 先用 `MODE=selfsigned` 在本机或局域网验证容器、Nginx、端口映射和 HTTPS 访问。
+2. 有公网 IP 后，用 `MODE=letsencrypt` + `LETSENCRYPT_STAGING=1` 验证 Let's Encrypt 校验链路。
+3. staging 成功后，再把 `LETSENCRYPT_STAGING=0` 切到正式证书。
+
+### 本机测试
+
+本机测试不需要公网 IP，也不会调用 Let's Encrypt。它只用于确认 Docker 服务能启动、`443` 端口能访问、Nginx 能正确返回页面。
+
+内网 IP 不能申请 Let's Encrypt 公网受信任证书，但可以先用自签名证书测试 Docker、Nginx、HTTPS 访问链路。
 
 ```bash
 cp .env.example .env
-vi .env
+```
+
+保持 `.env` 里：
+
+```env
+MODE=selfsigned
+PUBLIC_IP=127.0.0.1
+```
+
+启动：
+
+```bash
 docker compose up -d --build
 docker compose logs -f https-ip
 ```
 
-建议先保持：
+访问：
+
+```bash
+https://127.0.0.1/
+```
+
+浏览器会提示证书不受信任，这是自签名证书的正常现象。也可以用命令测试：
+
+```bash
+curl -k https://127.0.0.1/
+```
+
+预期结果：
+
+- `docker compose logs -f https-ip` 里出现 `Running with self-signed certificate only; Certbot is disabled`。
+- 浏览器访问 `https://127.0.0.1/` 时会提示证书不受信任。
+- `curl -k https://127.0.0.1/` 能返回 HTML。
+
+### 局域网测试
+
+局域网测试适合验证同一内网里的其他机器能否访问这个 HTTPS 服务。它仍然使用自签名证书，不会得到公网受信任证书。
+
+先查运行 Docker 机器的内网 IP，例如 `192.168.1.20`，然后把 `.env` 改成：
 
 ```env
+MODE=selfsigned
+PUBLIC_IP=192.168.1.20
+```
+
+然后访问：
+
+```bash
+https://192.168.1.20/
+```
+
+命令行测试：
+
+```bash
+curl -k https://192.168.1.20/
+```
+
+如果其他机器访问不了，优先检查：
+
+- Docker 主机防火墙是否放行 `443`。
+- `docker compose ps` 是否显示 `0.0.0.0:443->443/tcp`。
+- `PUBLIC_IP` 是否填的是 Docker 主机的局域网 IP，而不是容器内 IP。
+
+### 公网 staging 测试
+
+公网 staging 测试用于验证真实的 ACME 校验链路，但签出来的仍然是测试证书，浏览器不会信任它。这样可以避免一开始就撞正式环境的频率限制。
+
+前提：
+
+- `PUBLIC_IP` 必须是公网 IPv4 或 IPv6。
+- 公网 `80` 和 `443` 端口必须能访问到这台 Docker 主机。
+- 如果云厂商有安全组，需要放行入站 TCP `80` 和 `443`。
+
+```bash
+cp .env.example .env
+vi .env
+```
+
+公网测试时，`.env` 至少要设置：
+
+```env
+MODE=letsencrypt
+PUBLIC_IP=你的公网IP
 LETSENCRYPT_STAGING=1
 ```
 
-日志确认 staging 签发成功后，再改成：
+启动：
+
+```bash
+docker compose up -d --build
+docker compose logs -f https-ip
+```
+
+预期结果：
+
+- 日志里能看到 Certbot 申请或复用证书成功。
+- `curl -k https://你的公网IP/` 能返回 HTML。
+- 浏览器可能仍然提示证书不受信任，因为 staging 证书本来就不是正式可信证书。
+
+### 正式证书测试
+
+确认 staging 成功后，再改成正式证书：
 
 ```env
 LETSENCRYPT_STAGING=0
 ```
 
-然后重建启动。staging 和正式证书使用不同的 Certbot 证书名，所以测试证书不会阻碍正式证书签发：
+重建启动。staging 和正式证书使用不同的 Certbot 证书名，所以测试证书不会阻碍正式证书签发：
 
 ```bash
 docker compose up -d --build --force-recreate
@@ -43,11 +145,44 @@ docker compose up -d --build --force-recreate
 https://你的公网IP/
 ```
 
+预期结果：
+
+- 浏览器不再提示证书不受信任。
+- 证书信息里能看到 IP 地址在 Subject Alternative Name 中。
+- 后续容器会按 `RENEW_INTERVAL_SECONDS` 自动检查续签，续签成功后自动 reload Nginx。
+
+### 常用验证命令
+
+查看容器状态：
+
+```bash
+docker compose ps
+```
+
+查看日志：
+
+```bash
+docker compose logs -f https-ip
+```
+
+查看 HTTPS 返回：
+
+```bash
+curl -k https://127.0.0.1/
+```
+
+查看证书主题：
+
+```bash
+openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+```
+
 ## 配置
 
 | 变量 | 说明 |
 | --- | --- |
-| `PUBLIC_IP` | 必填，证书要绑定的公网 IP |
+| `MODE` | `selfsigned` 用于本机/内网测试，`letsencrypt` 用于公网真实签发 |
+| `PUBLIC_IP` | `MODE=letsencrypt` 时必须是公网 IP；`MODE=selfsigned` 时可用内网 IP 或 `127.0.0.1` |
 | `ACME_EMAIL` | 可选但建议填写，用于 Let's Encrypt 通知 |
 | `LETSENCRYPT_STAGING` | `1` 使用测试证书，`0` 使用正式证书 |
 | `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒 |
