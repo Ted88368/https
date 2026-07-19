@@ -1,0 +1,21 @@
+services:
+  https-ip:
+    build: .
+    container_name: https-ip
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_IP: ${PUBLIC_IP}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      LETSENCRYPT_STAGING: ${LETSENCRYPT_STAGING:-1}
+      RENEW_INTERVAL_SECONDS: ${RENEW_INTERVAL_SECONDS:-21600}
+      SERVER_NAME: ${SERVER_NAME:-_}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - nginx-certs:/etc/nginx/certs
+
+volumes:
+  letsencrypt:
+  nginx-certs:

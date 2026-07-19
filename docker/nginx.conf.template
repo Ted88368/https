@@ -1,0 +1,34 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name ${SERVER_NAME};
+
+    location /.well-known/acme-challenge/ {
+        root ${WEBROOT};
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name ${SERVER_NAME};
+
+    ssl_certificate ${LIVE_FULLCHAIN};
+    ssl_certificate_key ${LIVE_PRIVKEY};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
