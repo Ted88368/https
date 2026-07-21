@@ -1,8 +1,8 @@
-FROM python:3.13-slim
+FROM docker.m.daocloud.io/library/python:3.13-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx openssl ca-certificates \
-    && pip install --no-cache-dir "certbot>=5.4" \
+    && pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir "certbot>=5.4" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
