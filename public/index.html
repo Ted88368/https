@@ -3,48 +3,153 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HTTPS IP Service</title>
+    <title>HTTPS IP & 文件下载服务</title>
     <style>
       :root {
-        color-scheme: light dark;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --bg: #0f172a;
+        --card-bg: #1e293b;
+        --border: #334155;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --primary: #38bdf8;
+        --primary-hover: #0284c7;
+        --success-bg: rgba(16, 185, 129, 0.1);
+        --success-border: rgba(16, 185, 129, 0.3);
+        --success-text: #34d399;
       }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f8fafc;
+          --card-bg: #ffffff;
+          --border: #e2e8f0;
+          --text-main: #0f172a;
+          --text-sub: #64748b;
+          --primary: #0284c7;
+          --primary-hover: #0369a1;
+          --success-bg: rgba(16, 185, 129, 0.08);
+          --success-border: rgba(16, 185, 129, 0.25);
+          --success-text: #059669;
+        }
+      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #f6f8fa;
-        color: #17202a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        color: var(--text-main);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 20px;
       }
-      main {
-        width: min(680px, calc(100vw - 32px));
+      .card {
+        width: 100%;
+        max-width: 580px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 36px 32px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--success-bg);
+        border: 1px solid var(--success-border);
+        color: var(--success-text);
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: currentColor;
+        box-shadow: 0 0 8px currentColor;
       }
       h1 {
         margin: 0 0 12px;
-        font-size: 32px;
-        line-height: 1.2;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
       p {
-        margin: 0;
-        line-height: 1.65;
-        color: #52606d;
+        margin: 0 0 24px;
+        line-height: 1.6;
+        color: var(--text-sub);
+        font-size: 15px;
       }
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: #111418;
-          color: #edf2f7;
-        }
-        p {
-          color: #a9b4c0;
-        }
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background-color: var(--primary);
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 12px 20px;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+      }
+      .btn:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+      }
+      .btn-secondary {
+        background-color: transparent;
+        color: var(--text-main);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background-color: var(--border);
+      }
+      .info-box {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px dashed var(--border);
+        font-size: 13px;
+        color: var(--text-sub);
+      }
+      code {
+        background: rgba(148, 163, 184, 0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
       }
     </style>
   </head>
   <body>
-    <main>
+    <div class="card">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        HTTPS 静态与文件服务运行中
+      </div>
       <h1>HTTPS 服务已启动</h1>
-      <p>当前容器会通过 HTTP-01 校验申请 Let's Encrypt IP 地址证书，并自动续签后重载 Nginx。</p>
-    </main>
+      <p>容器已配置 HTTP-01 自动校验与 Let's Encrypt IP 证书续签服务。系统内置了专门的文件下载中心，方便直接下载与管理共享文件。</p>
+      
+      <div class="actions">
+        <a href="/downloads/" class="btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          进入文件下载中心 (/downloads/)
+        </a>
+      </div>
+
+      <div class="info-box">
+        文件存放目录：<code>public/downloads/</code> | 直接访问路径：<code>https://&lt;你的IP&gt;/downloads/</code>
+      </div>
+    </div>
   </body>
 </html>
