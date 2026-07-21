@@ -5,7 +5,7 @@
 本服务通过 Docker Compose 运行一个 Nginx HTTPS 服务：
 
 - TCP `80`：提供 ACME HTTP-01 校验，并将普通请求重定向到 HTTPS。
-- TCP `443`：提供静态页面和 HTTPS 访问。
+- TCP `443`：提供静态页面、文件下载服务（`/downloads/`）和 HTTPS 访问。
 - Certbot：在 `MODE=letsencrypt` 时申请、复用和续签 Let's Encrypt IP 地址证书。
 - `letsencrypt` 卷：保存 Certbot 账号、订单和证书数据。
 - `nginx-certs` 卷：保存 Nginx 当前实际加载的证书和私钥。

@@ -1,0 +1,4 @@
+欢迎访问下载服务！
+
+这是一个示例测试文件（sample-file.txt）。
+您可以在 public/downloads/ 目录（原生部署对应 /var/www/https-ip/html/downloads，Docker 中挂载为 ./downloads）放置需要供外部下载的文件。

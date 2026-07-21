@@ -57,8 +57,11 @@ apt-get update
 apt-get install -y --no-install-recommends nginx openssl ca-certificates python3 python3-venv
 
 log "准备服务目录"
-install -d -m 0755 "$APP_DIR" "$CONFIG_DIR" "$WEBROOT" "$HTML_DIR" "$CERT_DIR"
+install -d -m 0755 "$APP_DIR" "$CONFIG_DIR" "$WEBROOT" "$HTML_DIR" "$CERT_DIR" "$HTML_DIR/downloads"
 install -m 0644 "$SCRIPT_DIR/public/index.html" "$HTML_DIR/index.html"
+if [[ -d "$SCRIPT_DIR/public/downloads" ]]; then
+  cp -r "$SCRIPT_DIR/public/downloads/". "$HTML_DIR/downloads/" 2>/dev/null || true
+fi
 python3 -m venv "$CERTBOT_VENV"
 "$CERTBOT_VENV/bin/pip" install --upgrade "certbot>=5.4"
 
@@ -91,6 +94,13 @@ server {
     ssl_session_cache shared:SSL:10m;
     root ${HTML_DIR};
     index index.html;
+    location /downloads/ {
+        alias ${HTML_DIR}/downloads/;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+        charset utf-8;
+    }
     location / { try_files \$uri \$uri/ /index.html; }
 }
 EOF

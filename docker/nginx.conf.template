@@ -28,6 +28,14 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    location /downloads/ {
+        alias /usr/share/nginx/html/downloads/;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+        charset utf-8;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
