@@ -126,38 +126,22 @@ docker compose ps
 
 ### 5.1 Nginx 反向代理
 
-默认配置将请求作为静态页面处理。如果需要把 HTTPS 请求转发给后端服务，编辑 `docker/nginx.conf.template` 中 443 服务的 `location /`，保留其他 SSL 配置不变。例如后端监听在容器内的 `8080` 端口：
+服务支持开箱即用的配置化反向代理。只需在 `.env` 或环境变量中增加 `PROXY_PASS` 变量：
 
-```nginx
-location / {
-    proxy_pass http://backend:8080;
-    proxy_http_version 1.1;
-
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    proxy_connect_timeout 10s;
-    proxy_send_timeout 60s;
-    proxy_read_timeout 60s;
-}
+```env
+PROXY_PASS=http://127.0.0.1:8080
 ```
 
-`backend` 必须是 Nginx 容器能够解析和访问的地址：
+对于后端目标服务地址 `PROXY_PASS`：
+- **后端是同一个 Compose 项目中的服务**：使用 Compose 服务名，例如 `PROXY_PASS=http://backend:8080`。
+- **后端运行在另一台机器**：使用该机器在网络中可达的内网/公网地址，例如 `PROXY_PASS=http://10.0.0.20:8080`，并确认防火墙放行后端端口。
+- **后端运行在宿主机**：Docker 环境可在 `https-ip` 服务中增加 `extra_hosts: ["host.docker.internal:host-gateway"]`，然后配置 `PROXY_PASS=http://host.docker.internal:8080`；Ubuntu 原生部署直接配置 `PROXY_PASS=http://127.0.0.1:8080`。
 
-- 后端是同一个 Compose 项目中的服务：使用 Compose 服务名，例如 `http://backend:8080`，并在 `docker-compose.yml` 中增加 `backend` 服务。
-- 后端运行在另一台机器：使用该机器在 Docker 网络中可达的内网地址，例如 `http://10.0.0.20:8080`，并确认防火墙放行后端端口。
-- 后端运行在宿主机：Linux 环境可在 `https-ip` 服务中增加 `extra_hosts: ["host.docker.internal:host-gateway"]`，然后使用 `http://host.docker.internal:8080`。
+配置 `PROXY_PASS` 后，自动注入了标准的 HTTP / WebSocket 请求头代理配置（`Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, `Upgrade`, `Connection`）。同时保持 `/downloads/` 目录和 ACME 校验路径不受影响。
 
-如果后端使用 WebSocket，在代理配置中增加：
+如果需要更复杂的反向代理规则（例如定制超时时间、多条 location 等），可手动编辑 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
 
-```nginx
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-```
-
-修改模板后重建容器并检查配置：
+修改配置后应用生效并检查：
 
 ```bash
 docker compose up -d --build --force-recreate

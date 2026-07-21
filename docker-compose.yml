@@ -13,6 +13,8 @@ services:
       LETSENCRYPT_STAGING: ${LETSENCRYPT_STAGING:-1}
       RENEW_INTERVAL_SECONDS: ${RENEW_INTERVAL_SECONDS:-21600}
       SERVER_NAME: ${SERVER_NAME:-_}
+      PROXY_LOCATION: ${PROXY_LOCATION:-/}
+      PROXY_PASS: ${PROXY_PASS:-}
     volumes:
       - letsencrypt:/etc/letsencrypt
       - nginx-certs:/etc/nginx/certs

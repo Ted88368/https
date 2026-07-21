@@ -25,6 +25,8 @@ fi
 : "${LETSENCRYPT_STAGING:=0}"
 : "${ACME_EMAIL:=}"
 : "${SERVER_NAME:=_}"
+: "${PROXY_LOCATION:=/}"
+: "${PROXY_PASS:=}"
 
 die() { printf '错误: %s\n' "$*" >&2; exit 1; }
 log() { printf '\n==> %s\n' "$*"; }
@@ -65,12 +67,38 @@ fi
 python3 -m venv "$CERTBOT_VENV"
 "$CERTBOT_VENV/bin/pip" install --upgrade "certbot>=5.4"
 
-printf 'MODE=%q\nPUBLIC_IP=%q\nLETSENCRYPT_STAGING=%q\nACME_EMAIL=%q\nSERVER_NAME=%q\n' \
-  "$MODE" "$PUBLIC_IP" "$LETSENCRYPT_STAGING" "$ACME_EMAIL" "$SERVER_NAME" > "$ENV_FILE"
+printf 'MODE=%q\nPUBLIC_IP=%q\nLETSENCRYPT_STAGING=%q\nACME_EMAIL=%q\nSERVER_NAME=%q\nPROXY_LOCATION=%q\nPROXY_PASS=%q\n' \
+  "$MODE" "$PUBLIC_IP" "$LETSENCRYPT_STAGING" "$ACME_EMAIL" "$SERVER_NAME" "$PROXY_LOCATION" "$PROXY_PASS" > "$ENV_FILE"
 chmod 0600 "$ENV_FILE"
 
 log "生成 Nginx 配置"
+if [[ -n "$PROXY_PASS" ]]; then
+  LOC="${PROXY_LOCATION:-/}"
+  LOCATION_MAIN="    location ${LOC} {
+        proxy_pass ${PROXY_PASS};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+    }"
+  if [[ "$LOC" != "/" ]]; then
+    LOCATION_MAIN="${LOCATION_MAIN}
+
+    location / { try_files \$uri \$uri/ /index.html; }"
+  fi
+else
+  LOCATION_MAIN="    location / { try_files \$uri \$uri/ /index.html; }"
+fi
+
 cat > /etc/nginx/sites-available/${APP_NAME}.conf <<EOF
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -101,7 +129,7 @@ server {
         autoindex_localtime on;
         charset utf-8;
     }
-    location / { try_files \$uri \$uri/ /index.html; }
+${LOCATION_MAIN}
 }
 EOF
 # Ubuntu enables its sample site by default. If it remains enabled, requests

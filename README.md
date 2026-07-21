@@ -127,6 +127,15 @@ curl -k https://127.0.0.1/
 curl -k -O "https://127.0.0.1/downloads/2026-交割日日历.ics"
 ```
 
+### HTTP 反向代理服务
+
+服务支持通过配置环境变量 `PROXY_PASS` 直接启用 HTTP 反向代理功能：
+
+- **配置方式**：在 `.env` 或环境变量中设置 `PROXY_PASS=http://<后端IP或主机名>:<端口>`（例如 `PROXY_PASS=http://127.0.0.1:8080` 或 Docker 环境下的 `http://backend:8080`）。
+- **工作机制**：设置后，所有针对主站入口 `https://<你的IP>/` 的请求将自动代理至目标后端服务，并包含必要的 HTTP/WebSocket 报头。同时 `/downloads/` 目录文件下载功能保持独立不受影响。
+- **未配置时**：默认提供 `public/index.html` 静态内容。
+
+
 ### 局域网测试
 
 局域网测试适合验证同一内网里的其他机器能否访问这个 HTTPS 服务。它仍然使用自签名证书，不会得到公网受信任证书。
@@ -254,18 +263,33 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 | `LETSENCRYPT_STAGING` | `1` 使用测试证书，`0` 使用正式证书 |
 | `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒 |
 | `SERVER_NAME` | Nginx `server_name`，默认同时匹配 `_` 和 `PUBLIC_IP`；如需域名可显式设置 |
+| `PROXY_LOCATION` | 可选，HTTP 反向代理的 Location 匹配路径（如 `/etf`），默认 `/` |
+| `PROXY_PASS` | 可选，HTTP 反向代理目标地址（如 `http://101.200.183.179`），为空时提供静态 index.html |
 
 证书和账号数据保存在 Docker volume：
 
 - `letsencrypt`: Certbot 账号、订单、证书目录
 - `nginx-certs`: Nginx 当前加载的证书文件
 
-## 替换站点内容
+## 替换站点内容与反向代理
 
-默认静态页面在 `public/index.html`。修改后重新构建：
+默认静态页面在 `public/index.html`。
 
-```bash
-docker compose up -d --build
+### 指定路径反向代理示例（例如将 `/etf` 代理至 `http://101.200.183.179`）
+
+在 `.env` 中设置：
+
+```env
+PROXY_LOCATION=/etf
+PROXY_PASS=http://101.200.183.179
 ```
 
-如需反向代理到后端服务，可修改 `docker/nginx.conf.template` 中 443 server 的 `location /`。
+修改后重新应用配置：
+
+```bash
+docker compose up -d --build --force-recreate
+```
+
+
+如需更复杂的自定义 Nginx 路由规则，可直接修改 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
+

@@ -6,6 +6,8 @@ set -eu
 : "${LETSENCRYPT_STAGING:=1}"
 : "${RENEW_INTERVAL_SECONDS:=21600}"
 : "${SERVER_NAME:=_}"
+: "${PROXY_LOCATION:=/}"
+: "${PROXY_PASS:=}"
 
 WEBROOT=/var/www/certbot
 LIVE_CERT_DIR=/etc/nginx/certs/live
@@ -40,12 +42,42 @@ create_bootstrap_cert() {
 }
 
 render_nginx_config() {
-  sed \
-    -e "s|\${SERVER_NAME}|$SERVER_NAME|g" \
-    -e "s|\${WEBROOT}|$WEBROOT|g" \
-    -e "s|\${LIVE_FULLCHAIN}|$LIVE_FULLCHAIN|g" \
-    -e "s|\${LIVE_PRIVKEY}|$LIVE_PRIVKEY|g" \
-    /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+  if [ -n "${PROXY_PASS:-}" ]; then
+    LOC="${PROXY_LOCATION:-/}"
+    PROXY_CONFIG="    location ${LOC} {
+        proxy_pass ${PROXY_PASS};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+    }"
+    if [ "$LOC" != "/" ]; then
+      PROXY_CONFIG="${PROXY_CONFIG}
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }"
+    fi
+  else
+    PROXY_CONFIG="    location / {
+        try_files \$uri \$uri/ /index.html;
+    }"
+  fi
+
+  export SERVER_NAME WEBROOT LIVE_FULLCHAIN LIVE_PRIVKEY PROXY_CONFIG
+  python3 -c '
+import os, sys
+template = sys.stdin.read()
+res = template.replace("${SERVER_NAME}", os.environ.get("SERVER_NAME", "_")) \
+              .replace("${WEBROOT}", os.environ.get("WEBROOT", "")) \
+              .replace("${LIVE_FULLCHAIN}", os.environ.get("LIVE_FULLCHAIN", "")) \
+              .replace("${LIVE_PRIVKEY}", os.environ.get("LIVE_PRIVKEY", "")) \
+              .replace("${LOCATION_MAIN}", os.environ.get("PROXY_CONFIG", ""))
+sys.stdout.write(res)
+' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 }
 
 certbot_args() {

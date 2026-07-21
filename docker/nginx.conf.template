@@ -1,3 +1,8 @@
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -36,7 +41,6 @@ server {
         charset utf-8;
     }
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+${LOCATION_MAIN}
 }
+
