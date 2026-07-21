@@ -11,6 +11,15 @@ CERT_DIR="${CONFIG_DIR}/certs"
 ENV_FILE="${CONFIG_DIR}/environment"
 CERTBOT_VENV="${APP_DIR}/venv"
 
+# Read simple KEY=value settings used by the native installer.
+DOTENV_FILE="${SCRIPT_DIR}/.env"
+if [[ -f "$DOTENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$DOTENV_FILE"
+  set +a
+fi
+
 : "${MODE:=selfsigned}"
 : "${PUBLIC_IP:=127.0.0.1}"
 : "${LETSENCRYPT_STAGING:=0}"
@@ -60,8 +69,8 @@ chmod 0600 "$ENV_FILE"
 log "生成 Nginx 配置"
 cat > /etc/nginx/sites-available/${APP_NAME}.conf <<EOF
 server {
-    listen 80;
-    listen [::]:80;
+    listen 80 default_server;
+    listen [::]:80 default_server;
     server_name ${SERVER_NAMES};
 
     location /.well-known/acme-challenge/ {
@@ -72,8 +81,8 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
     server_name ${SERVER_NAMES};
     ssl_certificate ${CERT_DIR}/fullchain.pem;
     ssl_certificate_key ${CERT_DIR}/privkey.pem;
@@ -85,6 +94,9 @@ server {
     location / { try_files \$uri \$uri/ /index.html; }
 }
 EOF
+# Ubuntu enables its sample site by default. If it remains enabled, requests
+# can be handled by that site instead of this certificate configuration.
+rm -f /etc/nginx/sites-enabled/default
 ln -sfn /etc/nginx/sites-available/${APP_NAME}.conf /etc/nginx/sites-enabled/${APP_NAME}.conf
 
 if [[ ! -s "$CERT_DIR/fullchain.pem" || ! -s "$CERT_DIR/privkey.pem" ]]; then
@@ -165,12 +177,20 @@ systemctl enable --now nginx
 
 if [[ "$MODE" == "letsencrypt" ]]; then
   log "申请或复用 Let's Encrypt IP 证书"
-  "$APP_DIR/renew-cert.sh" || printf '警告: 证书申请失败，当前仍使用临时自签名证书；可查看 journalctl -u %s-renew.service\n' "$APP_NAME" >&2
+  if ! "$APP_DIR/renew-cert.sh"; then
+    printf "错误: Let's Encrypt 证书申请失败，当前仍使用临时自签名证书。\n" >&2
+    printf '请确认公网 TCP 80/443 可访问、PUBLIC_IP 正确，然后查看: journalctl -u %s-renew.service\n' "$APP_NAME" >&2
+    exit 1
+  fi
   systemctl enable --now ${APP_NAME}-renew.timer
 else
   systemctl disable --now ${APP_NAME}-renew.timer 2>/dev/null || true
 fi
 
 systemctl reload nginx
-printf '\n安装完成: https://%s/\n' "$PUBLIC_IP"
+if [[ "$MODE" == "selfsigned" ]]; then
+  printf '\n安装完成: https://%s/（当前为自签名证书，浏览器会显示不安全）\n' "$PUBLIC_IP"
+else
+  printf '\n安装完成: https://%s/\n' "$PUBLIC_IP"
+fi
 printf '状态: systemctl status nginx %s-renew.timer\n' "$APP_NAME"

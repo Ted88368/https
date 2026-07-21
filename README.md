@@ -10,6 +10,23 @@ Ubuntu 服务器可直接使用 Nginx、Certbot 和 systemd 部署，不需要 D
 sudo -E MODE=letsencrypt PUBLIC_IP=你的公网IP ACME_EMAIL=运维邮箱 ./install.sh
 ```
 
+也可以在项目根目录创建 `.env`，脚本部署和 Docker Compose 都会读取其中的配置：
+
+```env
+MODE=letsencrypt
+PUBLIC_IP=你的公网IP
+ACME_EMAIL=运维邮箱
+LETSENCRYPT_STAGING=0
+```
+
+然后执行：
+
+```bash
+sudo ./install.sh
+```
+
+注意：直接执行 `sudo ./install.sh` 使用的是 `MODE=selfsigned`，浏览器必然显示“不安全”。要使用浏览器信任的证书，必须填写公网 IP 并显式使用 `MODE=letsencrypt`；`LETSENCRYPT_STAGING=1` 也只会签发浏览器不信任的测试证书。
+
 脚本会安装 Nginx 和 Certbot（独立 Python venv），部署 `public/index.html`，配置 80/443 端口，并创建每 6 小时运行一次的 `https-ip-renew.timer`。公网 IP 证书要求外部可访问 TCP 80 和 443；建议先用 staging 验证：
 
 ```bash
