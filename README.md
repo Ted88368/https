@@ -118,13 +118,13 @@ curl -k https://127.0.0.1/
 - **访问地址**：`https://<你的IP或域名>/downloads/`
 - **目录索引**：默认开启自动目录索引（Autoindex），支持通过浏览器直接浏览并下载文件。
 - **文件存放**：
-  - **Docker 部署**：直接将需下载的文件放入宿主机的 `./downloads/` 目录中。
+  - **Docker 部署**：直接将需下载的文件放入宿主机的 `./public/downloads/` 目录中。
   - **Ubuntu 原生部署**：将文件放入 `/var/www/https-ip/html/downloads/` 目录中。
 
 可以使用 curl 测试下载示例文件：
 
 ```bash
-curl -k https://127.0.0.1/downloads/sample-file.txt
+curl -k -O "https://127.0.0.1/downloads/2026-交割日日历.ics"
 ```
 
 ### 局域网测试

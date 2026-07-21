@@ -16,7 +16,7 @@ services:
     volumes:
       - letsencrypt:/etc/letsencrypt
       - nginx-certs:/etc/nginx/certs
-      - ./downloads:/usr/share/nginx/html/downloads
+      - ./public/downloads:/usr/share/nginx/html/downloads
 
 volumes:
   letsencrypt:
