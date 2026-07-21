@@ -220,7 +220,7 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 | `ACME_EMAIL` | 可选但建议填写，用于 Let's Encrypt 通知 |
 | `LETSENCRYPT_STAGING` | `1` 使用测试证书，`0` 使用正式证书 |
 | `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒 |
-| `SERVER_NAME` | Nginx `server_name`，IP 场景通常保持 `_` |
+| `SERVER_NAME` | Nginx `server_name`，默认同时匹配 `_` 和 `PUBLIC_IP`；如需域名可显式设置 |
 
 证书和账号数据保存在 Docker volume：
 

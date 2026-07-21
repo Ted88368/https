@@ -34,6 +34,12 @@ if [[ "$MODE" == letsencrypt && ! "$PUBLIC_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ 
   die "PUBLIC_IP 必须是公网 IPv4 或 IPv6 地址"
 fi
 [[ "$SERVER_NAME" =~ ^[A-Za-z0-9_.:-]+$ ]] || die "SERVER_NAME 包含不支持的字符"
+SERVER_NAMES="$SERVER_NAME"
+if [[ "$SERVER_NAME" == "_" ]]; then
+  SERVER_NAMES="$PUBLIC_IP"
+elif [[ "$SERVER_NAME" != "$PUBLIC_IP" ]]; then
+  SERVER_NAMES="$SERVER_NAME $PUBLIC_IP"
+fi
 cd "$SCRIPT_DIR"
 
 log "安装系统依赖"
@@ -54,9 +60,9 @@ chmod 0600 "$ENV_FILE"
 log "生成 Nginx 配置"
 cat > /etc/nginx/sites-available/${APP_NAME}.conf <<EOF
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name ${SERVER_NAME};
+    listen 80;
+    listen [::]:80;
+    server_name ${SERVER_NAMES};
 
     location /.well-known/acme-challenge/ {
         root ${WEBROOT};
@@ -66,9 +72,9 @@ server {
 }
 
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
-    server_name ${SERVER_NAME};
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name ${SERVER_NAMES};
     ssl_certificate ${CERT_DIR}/fullchain.pem;
     ssl_certificate_key ${CERT_DIR}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -79,7 +85,6 @@ server {
     location / { try_files \$uri \$uri/ /index.html; }
 }
 EOF
-rm -f /etc/nginx/sites-enabled/default
 ln -sfn /etc/nginx/sites-available/${APP_NAME}.conf /etc/nginx/sites-enabled/${APP_NAME}.conf
 
 if [[ ! -s "$CERT_DIR/fullchain.pem" || ! -s "$CERT_DIR/privkey.pem" ]]; then
