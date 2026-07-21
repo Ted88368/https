@@ -1,6 +1,40 @@
-# Docker HTTPS IP Service
+# HTTPS IP Service
 
 基于 Docker 的 HTTPS 服务示例，使用公网 IP 直接申请 Let's Encrypt IP 地址证书，并自动续签。
+
+## Ubuntu 原生一键安装（非 Docker）
+
+Ubuntu 服务器可直接使用 Nginx、Certbot 和 systemd 部署，不需要 Docker：
+
+```bash
+sudo -E MODE=letsencrypt PUBLIC_IP=你的公网IP ACME_EMAIL=运维邮箱 ./install.sh
+```
+
+脚本会安装 Nginx 和 Certbot（独立 Python venv），部署 `public/index.html`，配置 80/443 端口，并创建每 6 小时运行一次的 `https-ip-renew.timer`。公网 IP 证书要求外部可访问 TCP 80 和 443；建议先用 staging 验证：
+
+```bash
+sudo -E MODE=letsencrypt PUBLIC_IP=你的公网IP ACME_EMAIL=运维邮箱 LETSENCRYPT_STAGING=1 ./install.sh
+```
+
+仅验证 Nginx 和 HTTPS 链路时可使用默认的自签名模式：
+
+```bash
+sudo ./install.sh
+curl -k https://127.0.0.1/
+```
+
+查看状态和续签日志：
+
+```bash
+systemctl status nginx https-ip-renew.timer
+journalctl -u https-ip-renew.service
+```
+
+卸载原生部署（保留系统中的其他 Nginx/Certbot 证书）：
+
+```bash
+sudo ./uninstall.sh
+```
 
 ## 前提
 
