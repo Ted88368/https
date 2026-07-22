@@ -27,7 +27,7 @@ sudo ./install.sh
 
 注意：直接执行 `sudo ./install.sh` 使用的是 `MODE=selfsigned`，浏览器必然显示“不安全”。要使用浏览器信任的证书，必须填写公网 IP 并显式使用 `MODE=letsencrypt`；`LETSENCRYPT_STAGING=1` 也只会签发浏览器不信任的测试证书。
 
-脚本会安装 Nginx 和 Certbot（独立 Python venv），部署 `public/index.html`，配置 80/443 端口，并创建每 6 小时运行一次的 `https-ip-renew.timer`。公网 IP 证书要求外部可访问 TCP 80 和 443；建议先用 staging 验证：
+脚本会安装 Nginx 和 Certbot（独立 Python venv），部署 `public/index.html`，配置 80/443 端口，并创建每 6 小时运行一次的 `https-ip-renew.timer`。80 端口的普通请求会反向代理到 `http://host.docker.internal:19090/`，ACME 校验路径除外。公网 IP 证书要求外部可访问 TCP 80 和 443；建议先用 staging 验证：
 
 ```bash
 sudo -E MODE=letsencrypt PUBLIC_IP=你的公网IP ACME_EMAIL=运维邮箱 LETSENCRYPT_STAGING=1 ./install.sh
