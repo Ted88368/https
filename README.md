@@ -278,8 +278,8 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 ### 1. 基础路由（直接修改模板）
 
 在 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）中已内置以下路由：
-- `/`：默认根路径代理（默认代理到 `http://host.docker.internal:8001/`）
-- `/api/`：API 接口代理（默认代理到 `http://host.docker.internal:8001/`）
+- `/`：默认根路径代理（默认代理到 `http://host.docker.internal:8000/`）
+- `/api/`：API 接口代理（默认代理到 `http://host.docker.internal:8000/`）
 - `/admin/`：管理后台代理（默认代理到 `http://host.docker.internal:8002/`）
 - `/downloads/`：静态文件下载服务（对应宿主机 `./public/downloads/`）
 
@@ -319,8 +319,8 @@ docker compose up -d --build --force-recreate
 ```
 
 > **提示（关于 `proxy_pass` 末尾的斜杠 `/`）**：
-> - `proxy_pass http://host.docker.internal:8001/;`（带 `/`）：访问 `https://<IP>/api/user` 会被重写为 `http://host.docker.internal:8001/user`（去除了 `/api` 前缀）。
-> - `proxy_pass http://host.docker.internal:8001;`（不带 `/`）：访问 `https://<IP>/api/user` 会直接请求 `http://host.docker.internal:8001/api/user`（保留了 `/api` 前缀）。
+> - `proxy_pass http://host.docker.internal:8000/;`（带 `/`）：访问 `https://<IP>/api/user` 会被重写为 `http://host.docker.internal:8000/user`（去除了 `/api` 前缀）。
+> - `proxy_pass http://host.docker.internal:8000;`（不带 `/`）：访问 `https://<IP>/api/user` 会直接请求 `http://host.docker.internal:8000/api/user`（保留了 `/api` 前缀）。
 
 如需更复杂的自定义 Nginx 路由规则，也可直接修改 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
 

@@ -133,7 +133,7 @@ docker compose ps
 - **模块化扩展**：在 `locations.d/` 目录下放置独立的 `*.conf` 文件（例如 `locations.d/services.conf`）。
 
 对于后端目标服务地址：
-- **后端运行在宿主机**：Docker 环境可直接配置目标为 `http://host.docker.internal:端口`（如 `http://host.docker.internal:8001/`）；Ubuntu 原生部署直接配置 `http://127.0.0.1:端口`。
+- **后端运行在宿主机**：Docker 环境可直接配置目标为 `http://host.docker.internal:端口`（如 `http://host.docker.internal:8000/`）；Ubuntu 原生部署直接配置 `http://127.0.0.1:端口`。
 - **后端是同一个 Compose 项目中的服务**：使用 Compose 服务名，例如 `http://backend:8080`。
 - **后端运行在另一台机器**：使用该机器在网络中可达的内网/公网地址，例如 `http://10.0.0.20:8080`，并确认防火墙放行后端端口。
 

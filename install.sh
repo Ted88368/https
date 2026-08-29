@@ -118,9 +118,9 @@ server {
         autoindex_localtime on;
         charset utf-8;
     }
-    # API 接口服务 (代理到宿主机 8001 端口)
+    # API 接口服务 (代理到宿主机 8000 端口)
     location /api/ {
-        proxy_pass http://host.docker.internal:8001/;
+        proxy_pass http://host.docker.internal:8000/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -149,9 +149,9 @@ server {
     # 引入多服务模块化 location 路由规则（自定义扩展）
     include ${CONFIG_DIR}/locations.d/*.conf;
 
-    # 默认根路由 (代理到宿主机 8001 端口，可按需修改)
+    # 默认根路由 (代理到宿主机 8000 端口，可按需修改)
     location / {
-        proxy_pass http://host.docker.internal:8001/;
+        proxy_pass http://host.docker.internal:8000/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
