@@ -48,5 +48,8 @@ server {
         charset utf-8;
     }
 
+    # 引入多服务模块化 location 路由规则
+    include /etc/nginx/conf.d/locations/*.conf;
+
 ${LOCATION_MAIN}
 }

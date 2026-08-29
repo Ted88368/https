@@ -59,10 +59,13 @@ apt-get update
 apt-get install -y --no-install-recommends nginx openssl ca-certificates python3 python3-venv
 
 log "准备服务目录"
-install -d -m 0755 "$APP_DIR" "$CONFIG_DIR" "$WEBROOT" "$HTML_DIR" "$CERT_DIR" "$HTML_DIR/downloads"
+install -d -m 0755 "$APP_DIR" "$CONFIG_DIR" "$WEBROOT" "$HTML_DIR" "$CERT_DIR" "$HTML_DIR/downloads" "$CONFIG_DIR/locations.d"
 install -m 0644 "$SCRIPT_DIR/public/index.html" "$HTML_DIR/index.html"
 if [[ -d "$SCRIPT_DIR/public/downloads" ]]; then
   cp -r "$SCRIPT_DIR/public/downloads/". "$HTML_DIR/downloads/" 2>/dev/null || true
+fi
+if [[ -d "$SCRIPT_DIR/locations.d" ]]; then
+  find "$SCRIPT_DIR/locations.d" -maxdepth 1 -name '*.conf' -exec cp {} "$CONFIG_DIR/locations.d/" \; 2>/dev/null || true
 fi
 python3 -m venv "$CERTBOT_VENV"
 "$CERTBOT_VENV/bin/pip" install --upgrade "certbot>=5.4"
@@ -138,6 +141,8 @@ server {
         autoindex_localtime on;
         charset utf-8;
     }
+    # 引入多服务模块化 location 路由规则
+    include ${CONFIG_DIR}/locations.d/*.conf;
 ${LOCATION_MAIN}
 }
 EOF

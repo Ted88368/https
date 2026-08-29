@@ -126,7 +126,8 @@ docker compose ps
 
 ### 5.1 Nginx 反向代理
 
-服务支持开箱即用的配置化反向代理。只需在 `.env` 或环境变量中增加 `PROXY_PASS` 变量：
+#### 1. 单服务反向代理（环境变量配置）
+只需在 `.env` 或环境变量中增加 `PROXY_PASS` 变量：
 
 ```env
 PROXY_PASS=http://127.0.0.1:8080
@@ -135,11 +136,32 @@ PROXY_PASS=http://127.0.0.1:8080
 对于后端目标服务地址 `PROXY_PASS`：
 - **后端是同一个 Compose 项目中的服务**：使用 Compose 服务名，例如 `PROXY_PASS=http://backend:8080`。
 - **后端运行在另一台机器**：使用该机器在网络中可达的内网/公网地址，例如 `PROXY_PASS=http://10.0.0.20:8080`，并确认防火墙放行后端端口。
-- **后端运行在宿主机**：Docker 环境可在 `https-ip` 服务中增加 `extra_hosts: ["host.docker.internal:host-gateway"]`，然后配置 `PROXY_PASS=http://host.docker.internal:8080`；Ubuntu 原生部署直接配置 `PROXY_PASS=http://127.0.0.1:8080`。
+- **后端运行在宿主机**：Docker 环境可在 `https-ip` 服务中配置 `PROXY_PASS=http://host.docker.internal:8080`；Ubuntu 原生部署直接配置 `PROXY_PASS=http://127.0.0.1:8080`。
 
-配置 `PROXY_PASS` 后，自动注入了标准的 HTTP / WebSocket 请求头代理配置（`Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, `Upgrade`, `Connection`）。同时保持 `/downloads/` 目录和 ACME 校验路径不受影响。
+#### 2. 多服务反向代理（模块化 `locations.d/` 配置）
+如果有多个后端服务，可直接在 `locations.d/` 目录下添加 `*.conf` 文件（例如 `locations.d/services.conf`）：
 
-如果需要更复杂的反向代理规则（例如定制超时时间、多条 location 等），可手动编辑 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
+```nginx
+location /api/ {
+    proxy_pass http://host.docker.internal:8001/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+}
+
+location /admin/ {
+    proxy_pass http://host.docker.internal:8002/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
 
 修改配置后应用生效并检查：
 

@@ -1,0 +1,39 @@
+# 多服务路径代理示例配置文件
+# 复制此文件为 <service-name>.conf (例如 locations.d/api.conf) 即可生效。
+#
+# 注意 proxy_pass 末尾是否有斜杠 /：
+# 1. proxy_pass http://host.docker.internal:8001/;  (带 /)
+#    访问 https://<IP>/api/users -> 转发为 http://host.docker.internal:8001/users (去除 /api 前缀)
+# 2. proxy_pass http://host.docker.internal:8001;   (不带 /)
+#    访问 https://<IP>/api/users -> 转发为 http://host.docker.internal:8001/api/users (保留 /api 前缀)
+
+# === 示例服务 1：API 接口服务 (代理到宿主机 8001 端口) ===
+location /api/ {
+    proxy_pass http://host.docker.internal:8001/;
+    proxy_http_version 1.1;
+
+    # 常用代理头配置
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # 支持 WebSocket
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
+    # 超时与缓存设置 (可根据需要调整)
+    proxy_connect_timeout 60s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 60s;
+}
+
+# === 示例服务 2：管理后台服务 (代理到宿主机 8002 端口) ===
+# location /admin/ {
+#     proxy_pass http://host.docker.internal:8002/;
+#     proxy_http_version 1.1;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+# }

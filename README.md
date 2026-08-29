@@ -275,11 +275,20 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 
 默认静态页面在 `public/index.html`。
 
-### 指定路径反向代理示例（例如将 `/etf` 代理至 `http://101.200.183.179`）
+### 1. 单服务反向代理（基于 `.env`）
 
-在 `.env` 中设置：
+如果只有一个后端服务，直接在 `.env` 中设置：
 
 ```env
+# 示例：将主站根路径 / 代理至后端服务
+PROXY_LOCATION=/
+PROXY_PASS=http://host.docker.internal:8080
+```
+
+或将指定前缀代理至后端：
+
+```env
+# 示例：将 /etf 路径代理至指定后端
 PROXY_LOCATION=/etf
 PROXY_PASS=http://101.200.183.179
 ```
@@ -290,5 +299,47 @@ PROXY_PASS=http://101.200.183.179
 docker compose up -d --build --force-recreate
 ```
 
+---
 
-如需更复杂的自定义 Nginx 路由规则，可直接修改 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
+### 2. 多服务反向代理（基于 `locations.d/` 模块化配置）
+
+如果有多个后端服务（如 `/api/` 转发到服务 A、`/admin/` 转发到服务 B），可在 `locations.d/` 目录下放置独立的 `.conf` 文件：
+
+1. 参考 `locations.d/example.conf.example`，在 `locations.d/` 目录下创建 `.conf` 文件（例如 `locations.d/services.conf`）：
+
+```nginx
+# 服务 1：API 接口服务 -> 宿主机 8001 端口
+location /api/ {
+    proxy_pass http://host.docker.internal:8001/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+}
+
+# 服务 2：管理后台 -> 宿主机 8002 端口
+location /admin/ {
+    proxy_pass http://host.docker.internal:8002/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+2. 重建/重启服务生效：
+
+```bash
+docker compose up -d --build --force-recreate
+```
+
+> **提示（关于 `proxy_pass` 末尾的斜杠 `/`）**：
+> - `proxy_pass http://host.docker.internal:8001/;`（带 `/`）：访问 `https://<IP>/api/user` 会被重写为 `http://host.docker.internal:8001/user`（去除了 `/api` 前缀）。
+> - `proxy_pass http://host.docker.internal:8001;`（不带 `/`）：访问 `https://<IP>/api/user` 会直接请求 `http://host.docker.internal:8001/api/user`（保留了 `/api` 前缀）。
+
+如需更复杂的自定义 Nginx 路由规则，也可直接修改 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）。
+

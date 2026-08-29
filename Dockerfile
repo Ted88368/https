@@ -11,7 +11,7 @@ COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY public/ /usr/share/nginx/html/
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && mkdir -p /var/www/certbot /etc/nginx/certs/live /var/log/nginx \
+    && mkdir -p /var/www/certbot /etc/nginx/certs/live /var/log/nginx /etc/nginx/conf.d/locations \
     && rm -f /etc/nginx/sites-enabled/default
 
 EXPOSE 80 443

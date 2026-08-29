@@ -26,7 +26,7 @@ else
 fi
 LE_LIVE_DIR="/etc/letsencrypt/live/$CERT_NAME"
 
-mkdir -p "$WEBROOT" "$LIVE_CERT_DIR" /run/nginx
+mkdir -p "$WEBROOT" "$LIVE_CERT_DIR" /run/nginx /etc/nginx/conf.d/locations
 
 create_bootstrap_cert() {
   if [ -s "$LIVE_FULLCHAIN" ] && [ -s "$LIVE_PRIVKEY" ]; then
