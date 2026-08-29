@@ -25,8 +25,6 @@ fi
 : "${LETSENCRYPT_STAGING:=0}"
 : "${ACME_EMAIL:=}"
 : "${SERVER_NAME:=_}"
-: "${PROXY_LOCATION:=/}"
-: "${PROXY_PASS:=}"
 
 die() { printf '错误: %s\n' "$*" >&2; exit 1; }
 log() { printf '\n==> %s\n' "$*"; }
@@ -70,32 +68,11 @@ fi
 python3 -m venv "$CERTBOT_VENV"
 "$CERTBOT_VENV/bin/pip" install --upgrade "certbot>=5.4"
 
-printf 'MODE=%q\nPUBLIC_IP=%q\nLETSENCRYPT_STAGING=%q\nACME_EMAIL=%q\nSERVER_NAME=%q\nPROXY_LOCATION=%q\nPROXY_PASS=%q\n' \
-  "$MODE" "$PUBLIC_IP" "$LETSENCRYPT_STAGING" "$ACME_EMAIL" "$SERVER_NAME" "$PROXY_LOCATION" "$PROXY_PASS" > "$ENV_FILE"
+printf 'MODE=%q\nPUBLIC_IP=%q\nLETSENCRYPT_STAGING=%q\nACME_EMAIL=%q\nSERVER_NAME=%q\n' \
+  "$MODE" "$PUBLIC_IP" "$LETSENCRYPT_STAGING" "$ACME_EMAIL" "$SERVER_NAME" > "$ENV_FILE"
 chmod 0600 "$ENV_FILE"
 
 log "生成 Nginx 配置"
-if [[ -n "$PROXY_PASS" ]]; then
-  LOC="${PROXY_LOCATION:-/}"
-  LOCATION_MAIN="    location ${LOC} {
-        proxy_pass ${PROXY_PASS};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$connection_upgrade;
-    }"
-  if [[ "$LOC" != "/" ]]; then
-    LOCATION_MAIN="${LOCATION_MAIN}
-
-    location / { try_files \$uri \$uri/ /index.html; }"
-  fi
-else
-  LOCATION_MAIN="    location / { try_files \$uri \$uri/ /index.html; }"
-fi
-
 cat > /etc/nginx/sites-available/${APP_NAME}.conf <<EOF
 map \$http_upgrade \$connection_upgrade {
     default upgrade;
@@ -141,9 +118,51 @@ server {
         autoindex_localtime on;
         charset utf-8;
     }
-    # 引入多服务模块化 location 路由规则
+    # API 接口服务 (代理到宿主机 8001 端口)
+    location /api/ {
+        proxy_pass http://host.docker.internal:8001/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+    # 管理后台服务 (代理到宿主机 8002 端口)
+    location /admin/ {
+        proxy_pass http://host.docker.internal:8002/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+    # 引入多服务模块化 location 路由规则（自定义扩展）
     include ${CONFIG_DIR}/locations.d/*.conf;
-${LOCATION_MAIN}
+
+    # 默认根路由 (代理到宿主机 8001 端口，可按需修改)
+    location / {
+        proxy_pass http://host.docker.internal:8001/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
 }
 EOF
 # Ubuntu enables its sample site by default. If it remains enabled, requests

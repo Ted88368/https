@@ -255,6 +255,8 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 
 ## 配置
 
+`.env` 专注于证书生命周期与运行环境配置：
+
 | 变量 | 说明 |
 | --- | --- |
 | `MODE` | `selfsigned` 用于本机/内网测试，`letsencrypt` 用于公网真实签发 |
@@ -263,35 +265,23 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 | `LETSENCRYPT_STAGING` | `1` 使用测试证书，`0` 使用正式证书 |
 | `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒 |
 | `SERVER_NAME` | Nginx `server_name`，默认同时匹配 `_` 和 `PUBLIC_IP`；如需域名可显式设置 |
-| `PROXY_LOCATION` | 可选，HTTP 反向代理的 Location 匹配路径（如 `/etf`），默认 `/` |
-| `PROXY_PASS` | 可选，HTTP 反向代理目标地址（如 `http://101.200.183.179`），为空时提供静态 index.html |
 
 证书和账号数据保存在 Docker volume：
 
 - `letsencrypt`: Certbot 账号、订单、证书目录
 - `nginx-certs`: Nginx 当前加载的证书文件
 
-## 替换站点内容与反向代理
+## Nginx 反向代理与路由配置
 
-默认静态页面在 `public/index.html`。
+所有网络路由统一由 **Nginx 配置文件** 进行管理，所见即所得。
 
-### 1. 单服务反向代理（基于 `.env`）
+### 1. 基础路由（直接修改模板）
 
-如果只有一个后端服务，直接在 `.env` 中设置：
-
-```env
-# 示例：将主站根路径 / 代理至后端服务
-PROXY_LOCATION=/
-PROXY_PASS=http://host.docker.internal:8080
-```
-
-或将指定前缀代理至后端：
-
-```env
-# 示例：将 /etf 路径代理至指定后端
-PROXY_LOCATION=/etf
-PROXY_PASS=http://101.200.183.179
-```
+在 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）中已内置以下路由：
+- `/`：默认根路径代理（默认代理到 `http://host.docker.internal:8001/`）
+- `/api/`：API 接口代理（默认代理到 `http://host.docker.internal:8001/`）
+- `/admin/`：管理后台代理（默认代理到 `http://host.docker.internal:8002/`）
+- `/downloads/`：静态文件下载服务（对应宿主机 `./public/downloads/`）
 
 修改后重新应用配置：
 
@@ -301,16 +291,13 @@ docker compose up -d --build --force-recreate
 
 ---
 
-### 2. 多服务反向代理（基于 `locations.d/` 模块化配置）
+### 2. 模块化扩展路由（基于 `locations.d/`）
 
-如果有多个后端服务（如 `/api/` 转发到服务 A、`/admin/` 转发到服务 B），可在 `locations.d/` 目录下放置独立的 `.conf` 文件：
-
-1. 参考 `locations.d/example.conf.example`，在 `locations.d/` 目录下创建 `.conf` 文件（例如 `locations.d/services.conf`）：
+如果需要添加更多微服务路由，可以在 `locations.d/` 目录下放置独立的 `.conf` 文件（例如 `locations.d/custom.conf`）：
 
 ```nginx
-# 服务 1：API 接口服务 -> 宿主机 8001 端口
-location /api/ {
-    proxy_pass http://host.docker.internal:8001/;
+location /custom/ {
+    proxy_pass http://host.docker.internal:8003/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -319,19 +306,13 @@ location /api/ {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
 }
-
-# 服务 2：管理后台 -> 宿主机 8002 端口
-location /admin/ {
-    proxy_pass http://host.docker.internal:8002/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
 ```
 
-2. 重建/重启服务生效：
+修改后重启服务生效：
+
+```bash
+docker compose up -d --build --force-recreate
+```
 
 ```bash
 docker compose up -d --build --force-recreate

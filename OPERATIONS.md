@@ -124,26 +124,24 @@ docker compose ps
 
 修改页面 `public/index.html` 或 Nginx 模板后必须重新构建镜像。不要删除 `letsencrypt` 和 `nginx-certs` 卷，否则会丢失 Certbot 状态和当前证书。
 
-### 5.1 Nginx 反向代理
+### 5.1 Nginx 反向代理与路由管理
 
-#### 1. 单服务反向代理（环境变量配置）
-只需在 `.env` 或环境变量中增加 `PROXY_PASS` 变量：
+所有反向代理规则统一在 **Nginx 配置文件** 中管理：
 
-```env
-PROXY_PASS=http://127.0.0.1:8080
-```
+- **Docker 部署**：直接编辑 `docker/nginx.conf.template`（包含 `/`、`/api/`、`/admin/` 等默认路由）。
+- **Ubuntu 原生部署**：编辑 `/etc/nginx/sites-available/https-ip.conf`。
+- **模块化扩展**：在 `locations.d/` 目录下放置独立的 `*.conf` 文件（例如 `locations.d/services.conf`）。
 
-对于后端目标服务地址 `PROXY_PASS`：
-- **后端是同一个 Compose 项目中的服务**：使用 Compose 服务名，例如 `PROXY_PASS=http://backend:8080`。
-- **后端运行在另一台机器**：使用该机器在网络中可达的内网/公网地址，例如 `PROXY_PASS=http://10.0.0.20:8080`，并确认防火墙放行后端端口。
-- **后端运行在宿主机**：Docker 环境可在 `https-ip` 服务中配置 `PROXY_PASS=http://host.docker.internal:8080`；Ubuntu 原生部署直接配置 `PROXY_PASS=http://127.0.0.1:8080`。
+对于后端目标服务地址：
+- **后端运行在宿主机**：Docker 环境可直接配置目标为 `http://host.docker.internal:端口`（如 `http://host.docker.internal:8001/`）；Ubuntu 原生部署直接配置 `http://127.0.0.1:端口`。
+- **后端是同一个 Compose 项目中的服务**：使用 Compose 服务名，例如 `http://backend:8080`。
+- **后端运行在另一台机器**：使用该机器在网络中可达的内网/公网地址，例如 `http://10.0.0.20:8080`，并确认防火墙放行后端端口。
 
-#### 2. 多服务反向代理（模块化 `locations.d/` 配置）
-如果有多个后端服务，可直接在 `locations.d/` 目录下添加 `*.conf` 文件（例如 `locations.d/services.conf`）：
+#### 模块化 `locations.d/` 配置示例：
 
 ```nginx
-location /api/ {
-    proxy_pass http://host.docker.internal:8001/;
+location /custom/ {
+    proxy_pass http://host.docker.internal:8003/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -151,15 +149,6 @@ location /api/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
-}
-
-location /admin/ {
-    proxy_pass http://host.docker.internal:8002/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 
