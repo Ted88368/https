@@ -11,9 +11,6 @@ WEBROOT=/var/www/certbot
 LIVE_CERT_DIR=/etc/nginx/certs/live
 LIVE_FULLCHAIN="$LIVE_CERT_DIR/fullchain.pem"
 LIVE_PRIVKEY="$LIVE_CERT_DIR/privkey.pem"
-# Let's Encrypt shortlived 证书的 fullchain.pem 只含叶子证书，缺少 ISRG X1，
-# 会导致部分客户端（首次访问/移动端）提示“不安全”。该文件在构建镜像时下载。
-export ISRG_X1_PEM="/etc/nginx/certs/isrg-x1.pem"
 
 if [ "$MODE" = "letsencrypt" ] && [ -z "${PUBLIC_IP:-}" ]; then
   echo "PUBLIC_IP is required when MODE=letsencrypt" >&2
@@ -71,13 +68,10 @@ certbot_args() {
   printf '%s\n' "$args"
 }
 
-# 把 Let's Encrypt 下发的证书拼成完整链（叶子 + ISRG X1），避免链不完整导致“不安全”。
+# 用 Let's Encrypt 下发的最新证书重建完整链（叶子 + 中间证书），
+# 并去掉链末尾多余的根证书，避免含不被信任根导致“不安全”。
 build_fullchain() {
-  if [ -s "$ISRG_X1_PEM" ]; then
-    cat "$LE_LIVE_DIR/fullchain.pem" "$ISRG_X1_PEM" > "$LIVE_FULLCHAIN"
-  else
-    cp "$LE_LIVE_DIR/fullchain.pem" "$LIVE_FULLCHAIN"
-  fi
+  /usr/local/bin/build-fullchain.sh
 }
 
 install_issued_cert() {
@@ -86,8 +80,6 @@ install_issued_cert() {
   fi
 
   build_fullchain
-  cp "$LE_LIVE_DIR/privkey.pem" "$LIVE_PRIVKEY"
-  chmod 600 "$LIVE_PRIVKEY"
   nginx -s reload || true
 }
 
@@ -105,7 +97,7 @@ renew_loop() {
   while true; do
     sleep "$RENEW_INTERVAL_SECONDS"
     echo "Running certificate renewal check"
-    if certbot renew --webroot --webroot-path "$WEBROOT" --deploy-hook "cp $LE_LIVE_DIR/fullchain.pem $LIVE_FULLCHAIN; if [ -s $ISRG_X1_PEM ]; then cat $ISRG_X1_PEM >> $LIVE_FULLCHAIN; fi; cp $LE_LIVE_DIR/privkey.pem $LIVE_PRIVKEY; chmod 600 $LIVE_PRIVKEY; nginx -s reload"; then
+    if certbot renew --webroot --webroot-path "$WEBROOT" --deploy-hook "/usr/local/bin/build-fullchain.sh; nginx -s reload"; then
       install_issued_cert || true
     else
       echo "Certificate renewal check failed" >&2

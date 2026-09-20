@@ -6,15 +6,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 下载 ISRG X1 根证书，用于补全 Let's Encrypt shortlived 证书的证书链
-RUN mkdir -p /etc/nginx/certs \
-    && curl -fsSL https://letsencrypt.org/certs/isrgrootx1.pem -o /etc/nginx/certs/isrg-x1.pem
-
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/build-fullchain.sh /usr/local/bin/build-fullchain.sh
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY public/ /usr/share/nginx/html/
 
-RUN chmod +x /usr/local/bin/entrypoint.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/build-fullchain.sh \
     && mkdir -p /var/www/certbot /etc/nginx/certs/live /var/log/nginx /etc/nginx/conf.d/locations \
     && rm -f /etc/nginx/sites-enabled/default
 

@@ -13,15 +13,9 @@ server {
         default_type text/plain;
     }
 
+    # 80 端口根路由一律跳转 HTTPS（不再反代面板）
     location / {
-        proxy_pass http://host.docker.internal:8000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        return 301 https://$host$request_uri;
     }
 }
 
@@ -61,18 +55,8 @@ server {
         return 301 /downloads$1;
     }
 
-    # 默认根路由 (代理到宿主机 8000 端口，可按需修改)
+    # 默认根路由：直接提供静态站点（日历 / index.html），不再反代到面板
     location / {
-        proxy_pass http://host.docker.internal:8000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_connect_timeout 60s;
-        proxy_read_timeout 60s;
-        proxy_send_timeout 60s;
+        try_files $uri $uri/ /index.html;
     }
 }
