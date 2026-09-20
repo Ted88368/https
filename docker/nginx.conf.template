@@ -56,6 +56,11 @@ server {
         return 301 /downloads/;
     }
 
+    # 兼容 /download（单数，少 s）写法，重定向到 /downloads（复数），并保留子路径
+    location ~ ^/download(/.*)?$ {
+        return 301 /downloads$1;
+    }
+
     # 默认根路由 (代理到宿主机 8000 端口，可按需修改)
     location / {
         proxy_pass http://host.docker.internal:8000/;
