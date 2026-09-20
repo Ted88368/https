@@ -51,6 +51,11 @@ server {
     # 引入多服务模块化 location 路由规则（自定义扩展）
     include /etc/nginx/conf.d/locations/*.conf;
 
+    # 下载目录不带结尾斜杠时，重定向到带斜杠的路径（避免落到根反代导致 503）
+    location = /downloads {
+        return 301 /downloads/;
+    }
+
     # 默认根路由 (代理到宿主机 8000 端口，可按需修改)
     location / {
         proxy_pass http://host.docker.internal:8000/;
