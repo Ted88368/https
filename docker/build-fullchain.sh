@@ -41,3 +41,7 @@ END {
 
 cp "$SRC_KEY" "$DST_KEY"
 chmod 600 "$DST_KEY"
+
+if [ -f /run/nginx/nginx.pid ] || [ -f /var/run/nginx.pid ] || pgrep nginx >/dev/null 2>&1; then
+  nginx -s reload || true
+fi

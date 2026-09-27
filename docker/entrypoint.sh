@@ -97,7 +97,7 @@ renew_loop() {
   while true; do
     sleep "$RENEW_INTERVAL_SECONDS"
     echo "Running certificate renewal check"
-    if certbot renew --webroot --webroot-path "$WEBROOT" --deploy-hook "/usr/local/bin/build-fullchain.sh; nginx -s reload"; then
+    if certbot renew --no-random-sleep-on-renew --deploy-hook /usr/local/bin/build-fullchain.sh; then
       install_issued_cert || true
     else
       echo "Certificate renewal check failed" >&2
