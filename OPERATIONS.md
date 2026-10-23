@@ -65,9 +65,11 @@ PUBLIC_IP=公网IP
 ACME_EMAIL=运维邮箱
 LETSENCRYPT_STAGING=1
 RENEW_INTERVAL_SECONDS=21600
-SERVER_NAME=_
+# 若需签署域名，可直接写在 SERVER_NAME 或 DOMAINS（例如 www.justetf.top）
+SERVER_NAME=www.justetf.top
+# SIGN_IP=auto 会同时在证书中包含 PUBLIC_IP 和域名 SAN；若只需域名证书可填 SIGN_IP=0
+SIGN_IP=auto
 ```
-
 ```bash
 docker compose up -d --build
 docker compose logs -f https-ip
@@ -287,12 +289,13 @@ docker compose port https-ip 443
 
 再依次检查主机防火墙、云安全组、NAT 转发和上游负载均衡。公网环境不能只在服务器本机使用 `curl` 验证，应从外部网络测试。
 
-### 浏览器提示证书不受信任
+### 浏览器提示证书不受信任或域名不匹配
 
 - `MODE=selfsigned`：这是预期行为。
 - `LETSENCRYPT_STAGING=1`：staging 证书不会被浏览器信任。
-- 正式环境：检查证书 SAN 是否包含访问的公网 IP，以及 Nginx 是否已 reload。
-
+- `SSL: no alternative certificate subject name matches target host name`（域名不匹配）：
+  证书 SAN 中未包含当前访问的域名。请在 `.env` 中设置 `SERVER_NAME=你的域名`（或 `DOMAINS`），确认 DNS A 记录已解析到服务器，然后执行 `docker compose up -d --build --force-recreate` 重新申请。
+- 正式环境：检查证书 SAN 是否包含访问的域名或公网 IP，以及 Nginx 是否已 reload。
 ### Certbot 申请失败
 
 ```bash

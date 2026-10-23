@@ -8,11 +8,14 @@ services:
       - "443:443"
     environment:
       MODE: ${MODE:-letsencrypt}
-      PUBLIC_IP: ${PUBLIC_IP}
+      PUBLIC_IP: ${PUBLIC_IP:-127.0.0.1}
+      DOMAINS: ${DOMAINS:-}
+      SERVER_NAME: ${SERVER_NAME:-_}
+      SIGN_IP: ${SIGN_IP:-auto}
       ACME_EMAIL: ${ACME_EMAIL:-}
       LETSENCRYPT_STAGING: ${LETSENCRYPT_STAGING:-1}
       RENEW_INTERVAL_SECONDS: ${RENEW_INTERVAL_SECONDS:-21600}
-      SERVER_NAME: ${SERVER_NAME:-_}
+      PREFERRED_PROFILE: ${PREFERRED_PROFILE:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

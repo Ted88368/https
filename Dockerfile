@@ -8,10 +8,11 @@ RUN apt-get update \
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY docker/build-fullchain.sh /usr/local/bin/build-fullchain.sh
+COPY docker/parse-config.py /usr/local/bin/parse-config.py
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY public/ /usr/share/nginx/html/
 
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/build-fullchain.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/build-fullchain.sh /usr/local/bin/parse-config.py \
     && mkdir -p /var/www/certbot /etc/nginx/certs/live /var/log/nginx /etc/nginx/conf.d/locations \
     && rm -f /etc/nginx/sites-enabled/default
 

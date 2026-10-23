@@ -191,7 +191,7 @@ curl -fsSI https://<公网IP或域名>/json/<订阅ID>
 | 订阅端点 502 | 宿主机 3x-ui 订阅服务未监听 2096 端口 | 检查 3x-ui 面板设置中订阅端口是否为 2096 并开启 |
 | 订阅链接仍带 `:2096` | 3x-ui 未配置反向代理 URI 或未重启 | 在订阅设置填入 `https://<公网IP或域名>/c3Vi/` 并执行 `x-ui restart` |
 | 地址栏“不安全”但能进页面 | 混合内容：页面引用了 `http://` 资源 | 见第 6 节 |
-| 证书名称不匹配 | 用域名访问，但证书 SAN 只有 IP | 用 `https://<IP>/` 访问，或另申请域名证书 |
+| 证书名称不匹配 | 用域名访问，但证书 SAN 只有 IP | 在 `.env` 中设置 `SERVER_NAME=你的域名` 并执行 `docker compose up -d --build --force-recreate` 自动追加域名证书 |
 
 ## 6. 混合内容（Mixed Content）
 

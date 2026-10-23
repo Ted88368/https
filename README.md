@@ -227,6 +227,42 @@ https://你的公网IP/
 - 证书信息里能看到 IP 地址在 Subject Alternative Name 中。
 - 后续容器会按 `RENEW_INTERVAL_SECONDS` 自动检查续签，续签成功后自动 reload Nginx。
 
+### 域名证书与混合证书（IP + 域名）
+
+服务支持签发域名证书以及同时包含 IP 和域名的混合证书。
+
+1. **配置域名**：
+   可以直接将域名写入 `.env` 的 `SERVER_NAME`，或显式配置 `DOMAINS`：
+
+   ```env
+   MODE=letsencrypt
+   PUBLIC_IP=43.163.244.203
+   SERVER_NAME=www.justetf.top
+   ACME_EMAIL=admin@example.com
+   LETSENCRYPT_STAGING=0
+   ```
+
+   若有多个域名（如根域名和 www），使用空格分隔：
+   ```env
+   SERVER_NAME="www.justetf.top justetf.top"
+   ```
+
+2. **证书类型说明**：
+   - **混合证书（默认 `SIGN_IP=auto`）**：当配置了有效的 `PUBLIC_IP` 与域名时，Certbot 会自动申请同时包含 `IP:43.163.244.203` 和 `DNS:www.justetf.top` 的证书。无论是通过 IP 还是域名访问，浏览器均不会报证书错误。使用 Let's Encrypt `shortlived` profile（有效期 6 天，容器每 6 小时自动检查续签）。
+   - **纯域名证书（`SIGN_IP=0`）**：若只需为域名申请标准证书，不希望在证书中包含 IP，可设置 `SIGN_IP=0`。此时将签发标准的 Let's Encrypt 90 天有效期证书。
+
+3. **生效与验证**：
+   修改 `.env` 后重新构建并启动：
+   ```bash
+   docker compose up -d --build --force-recreate
+   ```
+   验证域名证书主题与 SAN：
+   ```bash
+   openssl s_client -connect www.justetf.top:443 -servername www.justetf.top </dev/null 2>/dev/null \
+     | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+   curl -Iv https://www.justetf.top/
+   ```
+
 ### 常用验证命令
 
 查看容器状态：
@@ -260,12 +296,13 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 | 变量 | 说明 |
 | --- | --- |
 | `MODE` | `selfsigned` 用于本机/内网测试，`letsencrypt` 用于公网真实签发 |
-| `PUBLIC_IP` | `MODE=letsencrypt` 时必须是公网 IP；`MODE=selfsigned` 时可用内网 IP 或 `127.0.0.1` |
+| `PUBLIC_IP` | 公网 IP 地址；若设置有效公网 IP，默认会一同签署到证书 SAN 中（IP 证书） |
+| `DOMAINS` | 可选，需要签署的域名列表（空格或逗号分隔，如 `www.justetf.top justetf.top`） |
+| `SERVER_NAME` | Nginx `server_name`。若包含域名（如 `www.justetf.top`），会自动纳入证书签署列表；纯 IP 场景填 `_` |
+| `SIGN_IP` | 是否在证书中包含 IP：`auto`（默认，有公网 IP 即签署）、`0`/`false`（仅签署域名，有效期 90 天） |
 | `ACME_EMAIL` | 可选但建议填写，用于 Let's Encrypt 通知 |
 | `LETSENCRYPT_STAGING` | `1` 使用测试证书，`0` 使用正式证书 |
-| `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒 |
-| `SERVER_NAME` | Nginx `server_name`，默认同时匹配 `_` 和 `PUBLIC_IP`；如需域名可显式设置 |
-
+| `RENEW_INTERVAL_SECONDS` | 自动续签检查间隔，默认 `21600` 秒（6 小时） |
 证书和账号数据保存在 Docker volume：
 
 - `letsencrypt`: Certbot 账号、订单、证书目录

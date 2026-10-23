@@ -9,12 +9,23 @@ CERTS_DIR="/etc/nginx/certs/live"
 DST="$CERTS_DIR/fullchain.pem"
 DST_KEY="$CERTS_DIR/privkey.pem"
 
-# 注意：certbot 的 lineage 目录名形如 ip-<IP>-prod / ip-<IP>-staging，
-# 用的是连字符 "-prod"，不是点 ".prod"。
+# 优先使用环境变量传入的指定目录，或者 certbot renew 设置的 RENEWED_LINEAGE
 CAND=""
-for d in /etc/letsencrypt/live/ip-*-prod /etc/letsencrypt/live/ip-*-staging; do
-  [ -s "$d/fullchain.pem" ] && [ -s "$d/privkey.pem" ] && CAND="$d" && break
-done
+if [ -n "${RENEWED_LINEAGE:-}" ] && [ -s "$RENEWED_LINEAGE/fullchain.pem" ] && [ -s "$RENEWED_LINEAGE/privkey.pem" ]; then
+  CAND="$RENEWED_LINEAGE"
+fi
+if [ -z "$CAND" ] && [ -n "${LE_LIVE_DIR:-}" ] && [ -s "$LE_LIVE_DIR/fullchain.pem" ] && [ -s "$LE_LIVE_DIR/privkey.pem" ]; then
+  CAND="$LE_LIVE_DIR"
+fi
+if [ -z "$CAND" ]; then
+  for d in /etc/letsencrypt/live/ip-*-prod /etc/letsencrypt/live/ip-*-staging \
+           /etc/letsencrypt/live/*-prod /etc/letsencrypt/live/*-staging \
+           /etc/letsencrypt/live/*; do
+    [ -d "$d" ] || continue
+    [ "$d" = "/etc/letsencrypt/live/README" ] && continue
+    [ -s "$d/fullchain.pem" ] && [ -s "$d/privkey.pem" ] && CAND="$d" && break
+  done
+fi
 
 if [ -z "$CAND" ]; then
   echo "no letsencrypt cert found, keeping current fullchain" >&2
