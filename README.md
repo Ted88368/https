@@ -115,7 +115,7 @@ curl -k https://127.0.0.1/
 
 服务内置了专门的文件下载目录 `/downloads/`：
 
-- **访问地址**：`https://<你的IP或域名>/downloads/`
+- **访问地址**：`https://<你的IP或域名>/downloads/` 或 `https://<你的IP或域名>/download/`
 - **目录索引**：默认开启自动目录索引（Autoindex），支持通过浏览器直接浏览并下载文件。
 - **文件存放**：
   - **Docker 部署**：直接将需下载的文件放入宿主机的 `./public/downloads/` 目录中。
@@ -315,10 +315,10 @@ openssl s_client -connect 127.0.0.1:443 -showcerts </dev/null 2>/dev/null | open
 ### 1. 基础路由（直接修改模板）
 
 在 `docker/nginx.conf.template`（Docker 部署）或 `/etc/nginx/sites-available/https-ip.conf`（Ubuntu 原生部署）中已内置以下路由：
-- `/`：默认根路径代理（默认代理到 `http://host.docker.internal:8000/`）
+- `/`：默认根路径代理（默认代理到宿主机 3000 端口 `http://host.docker.internal:3000`）
 - `/api/`：API 接口代理（默认代理到 `http://host.docker.internal:8000/`）
 - `/admin/`：管理后台代理（默认代理到 `http://host.docker.internal:8002/`）
-- `/downloads/`：静态文件下载服务（对应宿主机 `./public/downloads/`）
+- `/downloads/` 或 `/download/`：静态文件下载服务（对应宿主机 `./public/downloads/`）
 
 修改后重新应用配置：
 

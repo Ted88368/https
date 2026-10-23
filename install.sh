@@ -111,7 +111,21 @@ server {
     ssl_session_cache shared:SSL:10m;
     root ${HTML_DIR};
     index index.html;
+    # 下载服务：带独立路径访问（支持 /downloads/ 与 /download/，开启目录索引）
+    location = /download {
+        return 301 /download/;
+    }
+    location = /downloads {
+        return 301 /downloads/;
+    }
     location /downloads/ {
+        alias ${HTML_DIR}/downloads/;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+        charset utf-8;
+    }
+    location /download/ {
         alias ${HTML_DIR}/downloads/;
         autoindex on;
         autoindex_exact_size off;
@@ -149,9 +163,9 @@ server {
     # 引入多服务模块化 location 路由规则（自定义扩展）
     include ${CONFIG_DIR}/locations.d/*.conf;
 
-    # 默认根路由 (代理到宿主机 8000 端口，可按需修改)
+    # 默认根路由 (代理到宿主机 3000 端口，可按需修改)
     location / {
-        proxy_pass http://host.docker.internal:8000/;
+        proxy_pass http://host.docker.internal:3000;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
